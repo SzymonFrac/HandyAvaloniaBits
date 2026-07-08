@@ -1,0 +1,5 @@
+﻿using HandyAvaloniaBits.PageTransitions.Models.ShapeCutout.Lerp.Factory.FillPerimeterShapeCutout.Abstract;
+
+namespace HandyAvaloniaBits.PageTransitions.Models.ShapeCutout.Lerp.Factory.FillPerimeterShapeCutout.Implementations;
+
+internal sealed class TopLeftFillPerimeterShapeCutoutLerpFactory : AbstractFillPerimeterShapeCutoutFactory;
