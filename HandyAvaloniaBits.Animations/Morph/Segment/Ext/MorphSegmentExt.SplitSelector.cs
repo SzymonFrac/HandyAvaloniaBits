@@ -8,7 +8,7 @@ internal static partial class MorphSegmentExt
 {
     extension(PathSegment segment)
     {
-        public (PathSegment? first, PathSegment? second) Split(ref Point start, in double t = .5) => segment switch
+        public (PathSegment first, PathSegment second) Split(ref Point start, in double t = .5) => segment switch
         {
             LineSegment l => l.Split(ref start, in t),
             QuadraticBezierSegment q => q.Split(ref start, in t),
