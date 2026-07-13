@@ -1,7 +1,5 @@
 ﻿using Avalonia;
 using Avalonia.Media;
-using System.Diagnostics;
-using System.Numerics;
 
 namespace HandyAvaloniaBits.Animations.Morph.Segment.Ext;
 
@@ -9,68 +7,177 @@ internal static partial class MorphSegmentExt
 {
     extension(ArcSegment arc)
     {
-        public (ArcSegment? first, ArcSegment? second) Split(ref Point start, in double t = .5)
+        public (ArcSegment first, ArcSegment second) Split(ref Point start, in double t = .5)
         {
-            var unrotatedChord = Avalonia.Matrix.CreateRotation(-arc.RotationAngle * Math.PI / 180).Transform(((start - arc.Point) / 2));
+            var normalizedSize = GetNormalizedSize(in arc, in start, out var arcRotation, out var unrotatedChord);
 
-            var radiiScale = (arc.Size.Width * arc.Size.Width * unrotatedChord.Y * unrotatedChord.Y
-                + arc.Size.Height * arc.Size.Height * unrotatedChord.X * unrotatedChord.X)
-                    / (arc.Size.Width * arc.Size.Width * arc.Size.Height * arc.Size.Height);
+            var center = GetCenter(in arc, in start, in arcRotation, in normalizedSize, in unrotatedChord);
 
-            var scale = Math.Sqrt(Math.Max(1, radiiScale));
+            var splitAngle = GetSplitAngle(in arc, in center, in start, in t, out var angleToRotate);
 
-            var normalizedSize = arc.Size * scale;
-            
-
-
-            var factor = Math.Sqrt(Math.Max(0,
-                (normalizedSize.Width * normalizedSize.Width * normalizedSize.Height * normalizedSize.Height
-                - normalizedSize.Width * normalizedSize.Width * unrotatedChord.Y * unrotatedChord.Y
-                - normalizedSize.Height * normalizedSize.Height * unrotatedChord.X * unrotatedChord.X)
-                    / (normalizedSize.Width * normalizedSize.Width * unrotatedChord.Y * unrotatedChord.Y
-                    + normalizedSize.Height * normalizedSize.Height * unrotatedChord.X * unrotatedChord.X)));
-
-            var sign = arc.SweepDirection == SweepDirection.Clockwise ^ arc.IsLargeArc ? 1 : -1;
-
-            var cx = sign * factor * unrotatedChord.Y * (normalizedSize.Width / normalizedSize.Height);
-            var cy = -sign * factor * unrotatedChord.X * (normalizedSize.Height / normalizedSize.Width);
-
-            var chordMidpoint = (start + arc.Point) / 2;
-            double centerX = (Math.Cos(arc.RotationAngle * Math.PI / 180) * cx - Math.Sin(arc.RotationAngle * Math.PI / 180) * cy) + chordMidpoint.X;
-            double centerY = (Math.Sin(arc.RotationAngle * Math.PI / 180) * cx + Math.Cos(arc.RotationAngle * Math.PI / 180) * cy) + chordMidpoint.Y;
-
-            var center = new Point(centerX, centerY);
+            var splitPoint = GetSplitPoint(in start, in center, in arcRotation, in splitAngle, in normalizedSize);
 
 
 
-            var toCenter = new Vector2((float)(center.X - start.X), (float)(center.Y - start.Y));
-            var toEnd = new Vector2((float)(arc.Point.X - center.X), (float)(arc.Point.Y - center.Y));
+            var (firstRotation, secondRotation) = (angleToRotate * t, angleToRotate * (1 - t));
 
-            var angleNotInArc = Math.PI - Math.Acos(Vector2.Dot(toCenter, toEnd) / (toCenter.Length() * toEnd.Length()));
-            var arcAngle = Math.Tau - angleNotInArc;
+            var first = new ArcSegment
+            {
+                Size = normalizedSize,
+                RotationAngle = arc.RotationAngle,
+                IsLargeArc = firstRotation.Degrees > 180,
+                SweepDirection = arc.SweepDirection,
+                Point = splitPoint
+            };
 
-            var angleToRotate = arc.IsLargeArc ? arcAngle : angleNotInArc;
-            var splitAtAngle = (angleToRotate * t) * (arc.SweepDirection == SweepDirection.Clockwise ? 1 : -1);
+            var second = new ArcSegment
+            {
+                Size = normalizedSize,
+                RotationAngle = arc.RotationAngle,
+                IsLargeArc = secondRotation.Degrees > 180,
+                SweepDirection = arc.SweepDirection,
+                Point = start = arc.Point
+            };
 
-
-            var arcRotationRad = arc.RotationAngle * Math.PI / 180;
-
-            var scaleRotation = Matrix.CreateScale(normalizedSize.Width, normalizedSize.Height);
-            var rotationMatrix = Matrix.CreateRotation(splitAtAngle);
-
-            var totalTransformation = scaleRotation * rotationMatrix;
-
-
-            var rotateFrom = start - center;
-            var rotateFromUnit = rotateFrom / Math.Sqrt(rotateFrom.X * rotateFrom.X + rotateFrom.Y * rotateFrom.Y);
-
-            var splitPoint = (totalTransformation * rotateFromUnit) + center;
-
-            // This implementation gets the point that the arc should be split at.
-            // This implementation assumes that the rotation is zero, otherwise breaks.
-
-            return (default, default);
+            return (first, second);
         }
+    }
+
+
+    private static Size GetNormalizedSize(in ArcSegment arc, in Point start, out Angle arcRotation, out Point unrotatedChord)
+    {
+        var chord = (start - arc.Point) / 2;
+        arcRotation = Angle.FromDegrees(arc.RotationAngle);
+        var rotationMatrix = Matrix.CreateRotation(-arcRotation);
+        unrotatedChord = rotationMatrix * chord;
+
+        var numerator = arc.Size.Width * arc.Size.Width * unrotatedChord.Y * unrotatedChord.Y
+            + arc.Size.Height * arc.Size.Height * unrotatedChord.X * unrotatedChord.X;
+        var denominator = arc.Size.Width * arc.Size.Width * arc.Size.Height * arc.Size.Height;
+        var radiiScale = numerator / denominator;
+
+        var scale = Math.Sqrt(Math.Max(1, radiiScale));
+        var absSize = new Size(Math.Abs(arc.Size.Width), Math.Abs(arc.Size.Height));
+        var normalizedSize = absSize * scale;
+        return normalizedSize;
+    }
+
+    private static Point GetCenter(in ArcSegment arc, in Point start, in Angle arcRotation, in Size normalizedSize, in Point unrotatedChord)
+    {
+        var numerator = (normalizedSize.Width * normalizedSize.Width * normalizedSize.Height * normalizedSize.Height
+            - normalizedSize.Width * normalizedSize.Width * unrotatedChord.Y * unrotatedChord.Y
+            - normalizedSize.Height * normalizedSize.Height * unrotatedChord.X * unrotatedChord.X);
+        var denominator = (normalizedSize.Width * normalizedSize.Width * unrotatedChord.Y * unrotatedChord.Y
+            + normalizedSize.Height * normalizedSize.Height * unrotatedChord.X * unrotatedChord.X);
+        var centerScaleFactorSquared = numerator / denominator;
+        var centerScaleFactor = Math.Sqrt(Math.Max(0, centerScaleFactorSquared));
+
+
+        var sign = arc.SweepDirection == SweepDirection.Clockwise ^ arc.IsLargeArc ? 1 : -1;
+
+        var cx = sign * centerScaleFactor * unrotatedChord.Y * (normalizedSize.Width / normalizedSize.Height);
+        var cy = -sign * centerScaleFactor * unrotatedChord.X * (normalizedSize.Height / normalizedSize.Width);
+
+        var rotationToCenter = Matrix.CreateRotation(arcRotation);
+        var scaleToCenter = Matrix.CreateScale(cx, cy);
+
+        var centerOffset = rotationToCenter * scaleToCenter * new Point(1, 1);
+
+        var chordMidpoint = (start + arc.Point) / 2;
+        var center = chordMidpoint + centerOffset;
+        return center;
+    }
+
+    private static Angle GetSplitAngle(in ArcSegment arc, in Point center, in Point start, in double t, out Angle angleToRotate)
+    {
+        var toCenter = Vector2.Create(center - start);
+        var toEnd = Vector2.Create(arc.Point - center);
+
+        var crossAngles = CrossAngles.Create(toCenter, toEnd);
+        var angleNotInArc = crossAngles.Smaller;
+
+        var angleInArc = Math.Tau - angleNotInArc;
+        angleToRotate = arc.IsLargeArc ? angleInArc : angleNotInArc;
+
+        var splitAngle = angleToRotate * t * (arc.SweepDirection == SweepDirection.Clockwise ? 1 : -1);
+        return splitAngle;
+    }
+
+    private static Point GetSplitPoint(in Point start, in Point center, in Angle arcRotation, in Angle splitAngle, in Size normalizedSize)
+    {
+        var rotateToEllipse = Matrix.CreateRotation(arcRotation);
+        var scaleRotation = Matrix.CreateScale(normalizedSize.Width, normalizedSize.Height);
+        var rotateInEllipse = Matrix.CreateRotation(splitAngle - arcRotation);
+
+        var startAboutOrigin = Vector2
+            .Create(start - center)
+            .Unit();
+
+        var splitPointAboutOrigin = rotateToEllipse * scaleRotation * rotateInEllipse * startAboutOrigin;
+        var splitPoint = splitPointAboutOrigin + center;
+        return splitPoint;
+    }
+
+
+
+    private readonly record struct Angle
+    {
+        public double Degrees { get; }
+        public double Radians { get; }
+
+        public static Angle Zero => new(0, 0);
+
+        public Angle(double deg, double rad) => (Degrees, Radians) = (deg, rad);
+
+        public static Angle FromDegrees(in double deg) => new(deg, deg * Math.PI / 180);
+        public static Angle FromRadians(in double rad) => new(rad * 180 / Math.PI, rad);
+
+        public static Angle operator *(Angle a, double scale) =>
+            new(a.Degrees * scale, a.Radians * scale);
+        public static Angle operator -(Angle a) =>
+            new(-a.Degrees, -a.Radians);
+        public static Angle operator -(double rad, Angle a) =>
+            new((rad * 180 / Math.PI) - a.Degrees, rad - a.Radians);
+        public static Angle operator -(Angle left, Angle right) =>
+            new(left.Degrees - right.Degrees, left.Radians - right.Radians);
+    }
+    private readonly ref struct CrossAngles
+    {
+        public Angle Larger { get; }
+        public Angle Smaller { get; }
+
+        public CrossAngles(Angle larger, Angle smaller) =>
+            (Larger, Smaller) = (larger, smaller);
+
+        public static CrossAngles Create(Vector2 a, Vector2 b)
+        {
+            var angle = Angle.FromRadians(Math.Cos(a.Dot(b) / (a.Magnitude() * b.Magnitude())));
+            var other = Math.PI - angle;
+
+            return angle.Degrees > 90
+                ? new(angle, other)
+                : new(other, angle);
+        }
+    }
+
+    private readonly ref struct Vector2
+    {
+        public double X { get; }
+        public double Y { get; }
+
+        private Vector2(double x, double y) => (X, Y) = (x, y);
+
+        public static Vector2 Create(in Point p) => new(p.X, p.Y);
+
+        public double Magnitude() => Math.Sqrt(X * X + Y * Y);
+        public Vector2 Unit() => this / Magnitude();
+        public double Dot(in Vector2 other) => X * other.X + Y * other.Y;
+
+        public static Vector2 operator /(Vector2 v, double scale) =>
+            new(v.X / scale, v.Y / scale);
+
+        public static implicit operator Point(Vector2 v) => new(v.X, v.Y);
+
     }
 
     private readonly ref struct Matrix
@@ -80,49 +187,21 @@ internal static partial class MorphSegmentExt
         public double M21 { get; }
         public double M22 { get; }
 
-        public static Matrix Identity => new(1, 0, 0, 1);
-
         private Matrix(double m11, double m12, double m21, double m22) => (M11, M12, M21, M22) = (m11, m12, m21, m22);
 
-        public static Matrix CreateRotation(in double rad) => new(Math.Cos(rad), -Math.Sin(rad), Math.Sin(rad), Math.Cos(rad));
+        public static Matrix CreateRotation(in Angle angle) =>
+            new(Math.Cos(angle.Radians), -Math.Sin(angle.Radians), Math.Sin(angle.Radians), Math.Cos(angle.Radians));
         public static Matrix CreateScale(in double x, in double y) => new(x, 0, 0, y);
-        public static Matrix CreateReflectionAtOrigin(in double rad) =>
-            new(Math.Cos(2 * rad), Math.Sin(2 * rad), Math.Sin(2 * rad), -Math.Cos(2 * rad));
 
 
-        public static Point operator *(Matrix matrix, Point point) =>
-            new(matrix.M11 * point.X + matrix.M12 * point.Y,
-                matrix.M21 * point.X + matrix.M22 * point.Y);
+        public static Point operator *(Matrix m, Point point) =>
+            new(m.M11 * point.X + m.M12 * point.Y,
+                m.M21 * point.X + m.M22 * point.Y);
 
         public static Matrix operator *(Matrix left, Matrix right) =>
             new(left.M11 * right.M11 + left.M12 * right.M21,
                 left.M11 * right.M12 + left.M12 * right.M22,
                 left.M21 * right.M11 + left.M22 * right.M21,
                 left.M21 * right.M12 + left.M22 * right.M22);
-
-        public static Matrix operator *(Matrix matrix, double scale) =>
-            new(matrix.M11 * scale,
-                matrix.M12 * scale,
-                matrix.M21 * scale,
-                matrix.M21 * scale);
-
-        public static Matrix operator /(Matrix matrix, double scale) =>
-            new(matrix.M11 / scale,
-                matrix.M12 / scale,
-                matrix.M21 / scale,
-                matrix.M21 / scale);
-
-        public static Matrix operator +(Matrix matrix, double scale) =>
-            new(matrix.M11 + scale,
-                matrix.M12 + scale,
-                matrix.M21 + scale,
-                matrix.M21 + scale);
-
-        public static Matrix operator -(Matrix matrix, double scale) =>
-            new(matrix.M11 - scale,
-                matrix.M12 - scale,
-                matrix.M21 - scale,
-                matrix.M21 - scale);
-
     }
 }
