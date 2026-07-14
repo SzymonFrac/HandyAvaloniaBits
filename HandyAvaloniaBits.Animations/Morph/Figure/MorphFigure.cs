@@ -55,12 +55,6 @@ internal readonly record struct MorphFigure
         {
             var cycle = i % from.Count;
 
-            //if (from[cycle].Split(ref start) is not (PathSegment first, PathSegment second))
-            //{
-            //    i++;
-            //    continue;
-            //}
-
             var (first, second) = from[cycle].Split(ref start);
 
             from.RemoveAt(cycle);
@@ -76,12 +70,6 @@ internal readonly record struct MorphFigure
         while (to.Count < normalizedSegmentCount)
         {
             var cycle = i % to.Count;
-
-            //if (to[cycle].Split(ref start) is not (PathSegment first, PathSegment second))
-            //{
-            //    i++;
-            //    continue;
-            //}
 
             var (first, second) = to[cycle].Split(ref start);
 
