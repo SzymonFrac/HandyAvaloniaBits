@@ -48,18 +48,14 @@ internal readonly record struct MorphFigure
     private static void Normalize(ref PathSegments from, ref PathSegments to, in (Point from, Point to) s)
     {
         var normalizedSegmentCount = Math.Max(from.Count, to.Count);
-
+        
         var i = 0;
         var start = s.from;
         while (from.Count < normalizedSegmentCount)
         {
             var cycle = i % from.Count;
 
-            if (from[cycle].Split(ref start) is not (PathSegment first, PathSegment second))
-            {
-                i++;
-                continue;
-            }
+            var (first, second) = from[cycle].Split(ref start);
 
             from.RemoveAt(cycle);
 
@@ -75,11 +71,7 @@ internal readonly record struct MorphFigure
         {
             var cycle = i % to.Count;
 
-            if (to[cycle].Split(ref start) is not (PathSegment first, PathSegment second))
-            {
-                i++;
-                continue;
-            }
+            var (first, second) = to[cycle].Split(ref start);
 
             to.RemoveAt(cycle);
 
