@@ -93,8 +93,8 @@ internal static partial class MorphSegmentExt
         var toCenter = Vector2.Create(center - start);
         var toEnd = Vector2.Create(arc.Point - center);
 
-        var crossAngles = CrossAngles.Create(toCenter, toEnd);
-        var angleNotInArc = crossAngles.Smaller;
+        var crossAngle = toCenter.AngleIn(toEnd);
+        var angleNotInArc = Math.PI - crossAngle;
 
         var angleInArc = Math.Tau - angleNotInArc;
         angleToRotate = arc.IsLargeArc ? angleInArc : angleNotInArc;
@@ -105,16 +105,21 @@ internal static partial class MorphSegmentExt
 
     private static Point GetSplitPoint(in Point start, in Point center, in Angle arcRotation, in Angle splitAngle, in Size normalizedSize)
     {
-        var rotateToEllipse = Matrix.CreateRotation(arcRotation);
-        var scaleRotation = Matrix.CreateScale(normalizedSize.Width, normalizedSize.Height);
-        var rotateInEllipse = Matrix.CreateRotation(splitAngle - arcRotation);
+        var unrotateEllipse = Matrix.CreateRotation(-arcRotation);
+        var toUnitCircle = Matrix.CreateScale(normalizedSize).Invert();
+        var ellipseTransformation = toUnitCircle * unrotateEllipse;
 
-        var startAboutOrigin = Vector2
-            .Create(start - center)
-            .Unit();
+        var rotateFromToUnit = start - center;
+        var unitPoint = ellipseTransformation * rotateFromToUnit;
 
-        var splitPointAboutOrigin = rotateToEllipse * scaleRotation * rotateInEllipse * startAboutOrigin;
+        var angleOfUnitPoint = Angle.FromPoint(unitPoint);
+        var nextAngle = angleOfUnitPoint + splitAngle;
+
+        var rotateFromToSplitPoint = new Point(Math.Cos(nextAngle.Radians), Math.Sin(nextAngle.Radians));
+
+        var splitPointAboutOrigin = ellipseTransformation.Invert() * rotateFromToSplitPoint;
         var splitPoint = splitPointAboutOrigin + center;
+
         return splitPoint;
     }
 
@@ -125,12 +130,11 @@ internal static partial class MorphSegmentExt
         public double Degrees { get; }
         public double Radians { get; }
 
-        public static Angle Zero => new(0, 0);
-
         public Angle(double deg, double rad) => (Degrees, Radians) = (deg, rad);
 
         public static Angle FromDegrees(in double deg) => new(deg, deg * Math.PI / 180);
         public static Angle FromRadians(in double rad) => new(rad * 180 / Math.PI, rad);
+        public static Angle FromPoint(in Point p) => FromRadians(Math.Atan2(p.Y, p.X));
 
         public static Angle operator *(Angle a, double scale) =>
             new(a.Degrees * scale, a.Radians * scale);
@@ -138,26 +142,8 @@ internal static partial class MorphSegmentExt
             new(-a.Degrees, -a.Radians);
         public static Angle operator -(double rad, Angle a) =>
             new((rad * 180 / Math.PI) - a.Degrees, rad - a.Radians);
-        public static Angle operator -(Angle left, Angle right) =>
-            new(left.Degrees - right.Degrees, left.Radians - right.Radians);
-    }
-    private readonly ref struct CrossAngles
-    {
-        public Angle Larger { get; }
-        public Angle Smaller { get; }
-
-        public CrossAngles(Angle larger, Angle smaller) =>
-            (Larger, Smaller) = (larger, smaller);
-
-        public static CrossAngles Create(Vector2 a, Vector2 b)
-        {
-            var angle = Angle.FromRadians(Math.Cos(a.Dot(b) / (a.Magnitude() * b.Magnitude())));
-            var other = Math.PI - angle;
-
-            return angle.Degrees > 90
-                ? new(angle, other)
-                : new(other, angle);
-        }
+        public static Angle operator +(Angle left, Angle right) =>
+            new(left.Degrees + right.Degrees, left.Radians + right.Radians);
     }
 
     private readonly ref struct Vector2
@@ -170,11 +156,11 @@ internal static partial class MorphSegmentExt
         public static Vector2 Create(in Point p) => new(p.X, p.Y);
 
         public double Magnitude() => Math.Sqrt(X * X + Y * Y);
-        public Vector2 Unit() => this / Magnitude();
         public double Dot(in Vector2 other) => X * other.X + Y * other.Y;
 
-        public static Vector2 operator /(Vector2 v, double scale) =>
-            new(v.X / scale, v.Y / scale);
+        public Angle AngleIn(in Vector2 other) =>
+            Angle.FromRadians(Math.Cos(Dot(other) / (Magnitude() * other.Magnitude())));
+
 
         public static implicit operator Point(Vector2 v) => new(v.X, v.Y);
 
@@ -192,7 +178,17 @@ internal static partial class MorphSegmentExt
         public static Matrix CreateRotation(in Angle angle) =>
             new(Math.Cos(angle.Radians), -Math.Sin(angle.Radians), Math.Sin(angle.Radians), Math.Cos(angle.Radians));
         public static Matrix CreateScale(in double x, in double y) => new(x, 0, 0, y);
+        public static Matrix CreateScale(in Size size) => new(size.Width, 0, 0, size.Height);
 
+        public double Determinant() => M11 * M22 - M12 * M21;
+        public Matrix Invert() =>
+            new Matrix(M22, -M12, -M21, M11) / Determinant();
+
+        public static Matrix operator /(Matrix m, double scale) =>
+            new(m.M11 / scale,
+                m.M12 / scale,
+                m.M21 / scale,
+                m.M22 / scale);
 
         public static Point operator *(Matrix m, Point point) =>
             new(m.M11 * point.X + m.M12 * point.Y,
