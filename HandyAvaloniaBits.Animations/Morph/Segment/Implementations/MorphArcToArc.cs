@@ -12,11 +12,11 @@ namespace HandyAvaloniaBits.Animations.Morph.Segment.Implementations;
 
 internal sealed record MorphArcToArc : MorphToArc
 {
-    private MorphArcToArc(MorphPointLerp lerp, MorphSizeLerp size, MorphRotationLerp rotation, ArcSegment toArc) : base(lerp, size, rotation, toArc) { }
+    private MorphArcToArc(MorphSizeLerp size, MorphRotationLerp rotation, MorphPointLerp lerp, ArcSegment toArc) : base(size, rotation, lerp, toArc) { }
 
     public static MorphArcToArc Create(in ArcSegment from, in ArcSegment to, ref (Point from, Point to) start) =>
-        new(from.Point.LerpTo((start = (from.Point, to.Point)).to),
-            from.Size.LerpTo(to.Size),
+        new(from.Size.LerpTo(to.Size),
             from.RotationAngle.LerpTo(to.RotationAngle),
+            from.Point.LerpTo((start = (from.Point, to.Point)).to),
             to);
 }

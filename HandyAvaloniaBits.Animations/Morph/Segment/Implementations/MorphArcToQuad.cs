@@ -16,7 +16,7 @@ internal sealed record MorphArcToQuad : MorphToArc
     private readonly MorphPointLerp _end;
 
     private MorphArcToQuad(MorphPointLerp lerp, MorphSizeLerp size, MorphRotationLerp rotation, ArcSegment arc, MorphPointLerp control, MorphPointLerp end)
-        : base(lerp, size, rotation, arc) =>
+        : base(size, rotation, lerp, arc) =>
             (_control, _end) = (control, end);
 
     public static MorphArcToQuad Create(in ArcSegment from, in QuadraticBezierSegment to, ref (Point from, Point to) start) =>
