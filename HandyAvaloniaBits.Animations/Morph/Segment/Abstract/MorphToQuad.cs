@@ -5,32 +5,12 @@ namespace HandyAvaloniaBits.Animations.Morph.Segment.Abstract;
 
 internal abstract record MorphToQuad : MorphSegment
 {
-    protected MorphToQuad(MorphPointLerp lerp) : base(lerp) { }
+    protected MorphPointLerp ControlLerp { get; }
+    protected MorphPointLerp Lerp { get; }
 
-    public override void Apply(in double t, in StreamGeometryContext sgc)
-    {
-        var lerps = QuadraticMorphPointLerps.Create(Lerp);
+    protected MorphToQuad(MorphPointLerp controlLerp, MorphPointLerp lerp) =>
+        (ControlLerp, Lerp) = (controlLerp, lerp);
 
-        sgc.QuadraticBezierTo(lerps.First(in t), lerps.Second(in t));
-    }
-
-
-
-    private readonly ref struct QuadraticMorphPointLerps
-    {
-        public MorphPointLerp First { get; }
-        public MorphPointLerp Second { get; }
-
-        public QuadraticMorphPointLerps(MorphPointLerp first, MorphPointLerp second) =>
-            (First, Second) = (first, second);
-
-        public static QuadraticMorphPointLerps Create(MorphPointLerp multicast)
-        {
-            var lerps = multicast.GetInvocationList()
-                .Cast<MorphPointLerp>()
-                .ToList();
-
-            return new(lerps[0], lerps[1]);
-        }
-    }
+    public override void Apply(in double t, in StreamGeometryContext sgc) =>
+        sgc.QuadraticBezierTo(ControlLerp(in t), Lerp(in t));
 }

@@ -5,33 +5,13 @@ namespace HandyAvaloniaBits.Animations.Morph.Segment.Abstract;
 
 internal abstract record MorphToCubic : MorphSegment
 {
-    protected MorphToCubic(MorphPointLerp lerp) : base(lerp) { }
+    protected MorphPointLerp FirstControlLerp { get; }
+    protected MorphPointLerp SecondControlLerp { get; }
+    protected MorphPointLerp Lerp { get; }
 
-    public override void Apply(in double t, in StreamGeometryContext sgc)
-    {
-        var lerps = CubicMorphPointLerps.Create(Lerp);
+    protected MorphToCubic(MorphPointLerp firstControlLerp, MorphPointLerp secondControlLerp, MorphPointLerp lerp) =>
+        (FirstControlLerp, SecondControlLerp, Lerp) = (firstControlLerp, secondControlLerp, lerp);
 
-        sgc.CubicBezierTo(lerps.First(in t), lerps.Second(in t), lerps.Third(in t));
-    }
-
-
-
-    private readonly ref struct CubicMorphPointLerps
-    {
-        public MorphPointLerp First { get; }
-        public MorphPointLerp Second { get; }
-        public MorphPointLerp Third { get; }
-
-        public CubicMorphPointLerps(MorphPointLerp first, MorphPointLerp second, MorphPointLerp third) =>
-            (First, Second, Third) = (first, second, third);
-
-        public static CubicMorphPointLerps Create(MorphPointLerp multicast)
-        {
-            var lerps = multicast.GetInvocationList()
-                .Cast<MorphPointLerp>()
-                .ToList();
-
-            return new(lerps[0], lerps[1], lerps[2]);
-        }
-    }
+    public override void Apply(in double t, in StreamGeometryContext sgc) =>
+        sgc.CubicBezierTo(FirstControlLerp(in t), SecondControlLerp(in t), Lerp(in t));
 }
