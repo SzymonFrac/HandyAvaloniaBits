@@ -7,11 +7,11 @@ internal abstract record MorphToCubic : MorphSegment
 {
     protected MorphPointLerp FirstControlLerp { get; }
     protected MorphPointLerp SecondControlLerp { get; }
-    protected MorphPointLerp Lerp { get; }
+    protected MorphPointLerp Point { get; }
 
-    protected MorphToCubic(MorphPointLerp firstControlLerp, MorphPointLerp secondControlLerp, MorphPointLerp lerp) =>
-        (FirstControlLerp, SecondControlLerp, Lerp) = (firstControlLerp, secondControlLerp, lerp);
+    protected MorphToCubic(MorphPointLerp firstControlLerp, MorphPointLerp secondControlLerp, MorphPointLerp point) =>
+        (FirstControlLerp, SecondControlLerp, Point) = (firstControlLerp, secondControlLerp, point);
 
     public override void Apply(in double t, in StreamGeometryContext sgc) =>
-        sgc.CubicBezierTo(FirstControlLerp(in t), SecondControlLerp(in t), Lerp(in t));
+        sgc.CubicBezierTo(FirstControlLerp(in t), SecondControlLerp(in t), Point(in t));
 }

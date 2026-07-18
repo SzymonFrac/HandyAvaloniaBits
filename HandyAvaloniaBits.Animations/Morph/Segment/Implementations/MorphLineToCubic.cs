@@ -8,7 +8,7 @@ namespace HandyAvaloniaBits.Animations.Morph.Segment.Implementations;
 
 internal sealed record MorphLineToCubic : MorphToCubic
 {
-    private MorphLineToCubic(MorphPointLerp fc, MorphPointLerp sc, MorphPointLerp lerp) : base(fc, sc, lerp) { }
+    private MorphLineToCubic(MorphPointLerp fc, MorphPointLerp sc, MorphPointLerp point) : base(fc, sc, point) { }
 
     public static MorphLineToCubic Create(in LineSegment from, in BezierSegment to, ref (Point from, Point to) start) =>
         new(((from.Point + start.from) / 2).LerpTo(to.Point1),

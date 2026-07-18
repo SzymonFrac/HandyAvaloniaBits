@@ -12,15 +12,18 @@ namespace HandyAvaloniaBits.Animations.Morph.Segment.Implementations;
 
 internal sealed record MorphLineToArc : MorphToArc
 {
-    private MorphLineToArc(MorphPointLerp lerp, MorphSizeLerp sizeLerp, MorphRotationLerp rotation, ArcSegment toArc)
-        : base(sizeLerp, rotation, lerp, toArc) { }
+    private MorphLineToArc(MorphSizeLerp sizeLerp, MorphRotationLerp rotation, MorphPointLerp point, ArcSegment arc)
+        : base(sizeLerp, rotation, point, arc) { }
 
     public static MorphLineToArc Create(in LineSegment from, in ArcSegment to, ref (Point from, Point to) start)
     {
         var pointLerp = from.Point.LerpTo(to.Point);
 
 
-        var ellipseStartSize = new Size(1, 0);
+        var distance = from.Point - start.from;
+        var diameter = Math.Sqrt(distance.X * distance.X + distance.Y * distance.Y);
+
+        var ellipseStartSize = new Size(diameter / 2, 0);
         var sizeLerp = ellipseStartSize.LerpTo(to.Size);
 
 
@@ -33,6 +36,14 @@ internal sealed record MorphLineToArc : MorphToArc
         var rotationLerp = arcRotation.LerpTo(to.RotationAngle);
 
         start = (from.Point, to.Point);
-        return new(pointLerp, sizeLerp, rotationLerp, to);
+        return new(sizeLerp, rotationLerp, pointLerp, to);
     }
+
+    public override void Apply(in double t, in StreamGeometryContext sgc) =>
+        sgc.ArcTo(Point(in t), Size(in t), Rotation(in t), Arc.IsLargeArc, AlternateSweepIfEased(t < 0), Arc.IsStroked);
+
+
+
+    private SweepDirection AlternateSweepIfEased(in bool negativeProgress) =>
+        (SweepDirection)((int)Arc.SweepDirection ^ Convert.ToInt32(negativeProgress));
 }

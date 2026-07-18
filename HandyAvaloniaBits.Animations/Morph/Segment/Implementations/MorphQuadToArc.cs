@@ -12,16 +12,16 @@ namespace HandyAvaloniaBits.Animations.Morph.Segment.Implementations;
 internal sealed record MorphQuadToArc : MorphSegment
 {
     private readonly MorphPointLerp _control;
-    private readonly MorphPointLerp _quadLerp;
+    private readonly MorphPointLerp _quadPoint;
 
     private readonly MorphSizeLerp _size;
     private readonly MorphRotationLerp _rotation;
-    private readonly MorphPointLerp _arcLerp;
+    private readonly MorphPointLerp _arcPoint;
 
     private readonly ArcSegment _arc;
 
-    private MorphQuadToArc(MorphPointLerp control, MorphPointLerp quadLerp, MorphSizeLerp size, MorphRotationLerp rotation, MorphPointLerp arcLerp, ArcSegment arc) =>
-        (_control, _quadLerp, _size, _rotation, _arcLerp, _arc) = (control, quadLerp, size, rotation, arcLerp, arc);
+    private MorphQuadToArc(MorphPointLerp control, MorphPointLerp quadPoint, MorphSizeLerp size, MorphRotationLerp rotation, MorphPointLerp arcPoint, ArcSegment arc) =>
+        (_control, _quadPoint, _size, _rotation, _arcPoint, _arc) = (control, quadPoint, size, rotation, arcPoint, arc);
 
     public static MorphQuadToArc Create(in QuadraticBezierSegment from, in ArcSegment to, ref (Point from, Point to) start)
     {
@@ -36,7 +36,10 @@ internal sealed record MorphQuadToArc : MorphSegment
         var arcLerp = quadLerpMidpoint.LerpTo(to.Point);
 
 
-        var ellipseStartSize = new Size(1, 0);
+        var distance = from.Point2 - start.from;
+        var diameter = Math.Sqrt(distance.X * distance.X + distance.Y * distance.Y);
+
+        var ellipseStartSize = new Size(diameter / 2, 0);
         var sizeLerp = ellipseStartSize.LerpTo(to.Size);
 
 
@@ -63,7 +66,7 @@ internal sealed record MorphQuadToArc : MorphSegment
 
 
     private void LerpQuad(in double t, in StreamGeometryContext sgc) =>
-        sgc.QuadraticBezierTo(_control(in t), _quadLerp(in t));
+        sgc.QuadraticBezierTo(_control(in t), _quadPoint(in t));
     private void LerpArc(in double t, in StreamGeometryContext sgc) =>
-        sgc.ArcTo(_arcLerp(in t), _size(in t), _rotation(in t), _arc.IsLargeArc, _arc.SweepDirection, _arc.IsStroked);
+        sgc.ArcTo(_arcPoint(in t), _size(in t), _rotation(in t), _arc.IsLargeArc, _arc.SweepDirection, _arc.IsStroked);
 }

@@ -6,11 +6,11 @@ namespace HandyAvaloniaBits.Animations.Morph.Segment.Abstract;
 internal abstract record MorphToQuad : MorphSegment
 {
     protected MorphPointLerp ControlLerp { get; }
-    protected MorphPointLerp Lerp { get; }
+    protected MorphPointLerp Point { get; }
 
-    protected MorphToQuad(MorphPointLerp controlLerp, MorphPointLerp lerp) =>
-        (ControlLerp, Lerp) = (controlLerp, lerp);
+    protected MorphToQuad(MorphPointLerp controlLerp, MorphPointLerp point) =>
+        (ControlLerp, Point) = (controlLerp, point);
 
     public override void Apply(in double t, in StreamGeometryContext sgc) =>
-        sgc.QuadraticBezierTo(ControlLerp(in t), Lerp(in t));
+        sgc.QuadraticBezierTo(ControlLerp(in t), Point(in t));
 }
