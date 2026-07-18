@@ -8,7 +8,7 @@ namespace HandyAvaloniaBits.Animations.Morph.Segment.Implementations;
 
 internal sealed record MorphQuadToLine : MorphToQuad
 {
-    private MorphQuadToLine(MorphPointLerp c, MorphPointLerp lerp) : base(c, lerp) { }
+    private MorphQuadToLine(MorphPointLerp c, MorphPointLerp point) : base(c, point) { }
 
     public static MorphQuadToLine Create(in QuadraticBezierSegment from, in LineSegment to, ref (Point from, Point to) start) =>
         new(from.Point1.LerpTo((to.Point + start.to) / 2),

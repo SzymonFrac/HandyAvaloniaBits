@@ -9,13 +9,13 @@ internal abstract record MorphToArc : MorphSegment
 {
     protected MorphSizeLerp Size { get; }
     protected MorphRotationLerp Rotation { get; }
-    protected MorphPointLerp Lerp { get; }
+    protected MorphPointLerp Point { get; }
     
     protected ArcSegment Arc { get; }
 
-    protected MorphToArc(MorphSizeLerp size, MorphRotationLerp rotation, MorphPointLerp lerp, ArcSegment arc) =>
-        (Size, Rotation, Lerp, Arc) = (size, rotation, lerp, arc);
+    protected MorphToArc(MorphSizeLerp size, MorphRotationLerp rotation, MorphPointLerp point, ArcSegment arc) =>
+        (Size, Rotation, Point, Arc) = (size, rotation, point, arc);
 
     public override void Apply(in double t, in StreamGeometryContext sgc) =>
-        sgc.ArcTo(Lerp(in t), Size(in t), Rotation(t), Arc.IsLargeArc, Arc.SweepDirection, Arc.IsStroked);
+        sgc.ArcTo(Point(in t), Size(in t), Rotation(t), Arc.IsLargeArc, Arc.SweepDirection, Arc.IsStroked);
 }

@@ -13,16 +13,17 @@ internal sealed record MorphCubicToArc : MorphSegment
 {
     private readonly MorphPointLerp _firstControl;
     private readonly MorphPointLerp _secondControl;
-    private readonly MorphPointLerp _cubicLerp;
+    private readonly MorphPointLerp _cubicPoint;
+
 
     private readonly MorphSizeLerp _size;
     private readonly MorphRotationLerp _rotation;
-    private readonly MorphPointLerp _arcLerp;
+    private readonly MorphPointLerp _arcPoint;
 
     private readonly ArcSegment _arc;
 
-    private MorphCubicToArc(MorphPointLerp firstControl, MorphPointLerp secondControl, MorphPointLerp cubicLerp, MorphSizeLerp size, MorphRotationLerp rotation, MorphPointLerp arcLerp, ArcSegment arc) =>
-        (_firstControl, _secondControl, _cubicLerp, _size, _rotation, _arcLerp, _arc) = (firstControl, secondControl, cubicLerp, size, rotation, arcLerp, arc);
+    private MorphCubicToArc(MorphPointLerp firstControl, MorphPointLerp secondControl, MorphPointLerp cubicPoint, MorphSizeLerp size, MorphRotationLerp rotation, MorphPointLerp arcPoint, ArcSegment arc) =>
+        (_firstControl, _secondControl, _cubicPoint, _size, _rotation, _arcPoint, _arc) = (firstControl, secondControl, cubicPoint, size, rotation, arcPoint, arc);
 
     public static MorphCubicToArc Create(in BezierSegment from, in ArcSegment to, ref (Point from, Point to) start)
     {
@@ -38,7 +39,10 @@ internal sealed record MorphCubicToArc : MorphSegment
         var arcLerp = cubicLerpMidpoint.LerpTo(to.Point);
 
 
-        var ellipseStartSize = new Size(1, 0);
+        var distance = from.Point3 - start.from;
+        var diameter = Math.Sqrt(distance.X * distance.X + distance.Y * distance.Y);
+
+        var ellipseStartSize = new Size(diameter / 2, 0);
         var sizeLerp = ellipseStartSize.LerpTo(to.Size);
 
 
@@ -65,7 +69,7 @@ internal sealed record MorphCubicToArc : MorphSegment
 
 
     private void LerpCubic(in double t, in StreamGeometryContext sgc) =>
-        sgc.CubicBezierTo(_firstControl(t), _secondControl(t), _cubicLerp(t));
+        sgc.CubicBezierTo(_firstControl(t), _secondControl(t), _cubicPoint(t));
     private void LerpArc(in double t, in StreamGeometryContext sgc) =>
-        sgc.ArcTo(_arcLerp(t), _size(t), _rotation(t), _arc.IsLargeArc, _arc.SweepDirection, _arc.IsStroked);
+        sgc.ArcTo(_arcPoint(t), _size(t), _rotation(t), _arc.IsLargeArc, _arc.SweepDirection, _arc.IsStroked);
 }
