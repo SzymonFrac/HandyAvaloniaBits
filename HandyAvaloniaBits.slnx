@@ -3,6 +3,5 @@
   <Project Path="HandyAvaloniaBits.Controls/HandyAvaloniaBits.Controls.csproj" />
   <Project Path="HandyAvaloniaBits.Diagnostics/HandyAvaloniaBits.Diagnostics.csproj" />
   <Project Path="HandyAvaloniaBits.Fluent/HandyAvaloniaBits.Fluent.csproj" />
-  <Project Path="HandyAvaloniaBits.MVVM/HandyAvaloniaBits.MVVM.csproj" />
   <Project Path="HandyAvaloniaBits.PageTransitions/HandyAvaloniaBits.PageTransitions.csproj" />
 </Solution>

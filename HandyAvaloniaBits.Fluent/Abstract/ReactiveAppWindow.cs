@@ -1,13 +1,12 @@
 ﻿using Avalonia;
-using HandyAvaloniaBits.MVVM.Abstract;
 using FluentAvalonia.UI.Windowing;
 using ReactiveUI;
 
 namespace HandyAvaloniaBits.Fluent.Abstract;
 
-public abstract class AppWindowBase<TAppWindow, TViewModel> : FAAppWindow, IViewFor<TViewModel>
+public abstract class ReactiveAppWindow<TAppWindow, TViewModel> : FAAppWindow, IViewFor<TViewModel>
     where TAppWindow : FAAppWindow, IViewFor<TViewModel>
-    where TViewModel : ViewModelBase
+    where TViewModel : ReactiveObject
 {
     public static readonly StyledProperty<TViewModel?> ViewModelProperty = AvaloniaProperty.Register<TAppWindow, TViewModel?>(nameof(ViewModel));
 
