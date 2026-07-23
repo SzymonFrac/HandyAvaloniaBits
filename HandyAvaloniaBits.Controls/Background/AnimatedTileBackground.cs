@@ -1,23 +1,23 @@
 ﻿using Avalonia;
-using Avalonia.Animation;
 using Avalonia.Controls;
 using Avalonia.Media;
 using DynamicData.Binding;
 using ReactiveUI;
+using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Disposables.Fluent;
 using System.Reactive.Linq;
 
-namespace HandyAvaloniaBits.Controls;
+namespace HandyAvaloniaBits.Controls.Background;
 
-public sealed class EasingAnimatedTileBackground : ContentControl
+public sealed class AnimatedTileBackground : ContentControl
 {
     private readonly CompositeDisposable _subscriptions = new(2);
 
     private readonly Size _tileSize;
     private readonly Point _tileDimensions;
 
-# pragma warning disable CS0649
+#pragma warning disable CS0649
     private readonly Point _totalDirection;
 # pragma warning restore
 
@@ -26,7 +26,7 @@ public sealed class EasingAnimatedTileBackground : ContentControl
     public required TimeSpan TotalCycleTime { get; init; } = TimeSpan.FromSeconds(1);
     public required TimeSpan UpdateSpeed { get; init; } = TimeSpan.FromMilliseconds(16);
     public required DrawingBrush TileBrush
-    {
+    { 
         get;
         init
         {
@@ -37,17 +37,17 @@ public sealed class EasingAnimatedTileBackground : ContentControl
     }
 
 
+    public static readonly StyledProperty<bool> EnabledProperty = AvaloniaProperty.Register<AnimatedTileBackground, bool>(nameof(Enabled), true);
     public static readonly StyledProperty<Point> DirectionProperty = AvaloniaProperty.Register<AnimatedTileBackground, Point>(nameof(Direction), new(1, 1));
-    public static readonly StyledProperty<KeySpline> EasingProperty = AvaloniaProperty.Register<AnimatedTileBackground, KeySpline>(nameof(Easing), new KeySpline(0, 0, 1, 1));
+    public bool Enabled
+    {
+        get => GetValue(EnabledProperty);
+        set => SetValue(EnabledProperty, value);
+    }
     public Point Direction
     {
         get => GetValue(DirectionProperty);
         set => SetValue(DirectionProperty, value);
-    }
-    public KeySpline Easing
-    {
-        get => GetValue(EasingProperty);
-        set => SetValue(EasingProperty, value);
     }
 
 
@@ -55,7 +55,7 @@ public sealed class EasingAnimatedTileBackground : ContentControl
     public override void Render(DrawingContext context)
     {
         context.PushTransform(new Matrix(1, 0, 0, 1, animationOffset.X, animationOffset.Y));
-        context.FillRectangle(TileBrush, new Rect(Bounds.TopLeft - _tileDimensions, Bounds.Size + _tileSize * 2));
+        context.FillRectangle(TileBrush, new Rect(Bounds.TopLeft - _tileDimensions * 2, Bounds.Size + _tileSize * 3));
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -70,10 +70,15 @@ public sealed class EasingAnimatedTileBackground : ContentControl
             .BindTo(this, o => o._totalDirection)
             .DisposeWith(_subscriptions);
 
-        Observable.Interval(UpdateSpeed, RxSchedulers.MainThreadScheduler)
-            .TimeInterval()
+
+        var enabled = this.WhenValueChanged(o => o.Enabled)
+            .DistinctUntilChanged()
+            .Select(e => e
+                ? Observable.Interval(UpdateSpeed, RxSchedulers.MainThreadScheduler)
+                    .TimeInterval()
+                : Observable.Empty<TimeInterval<long>>())
+            .Switch()
             .Select(t => t.Interval / TotalCycleTime)
-            .Select(Easing.GetSplineProgress)
             .Subscribe(UpdateAnimation)
             .DisposeWith(_subscriptions);
     }
@@ -83,7 +88,7 @@ public sealed class EasingAnimatedTileBackground : ContentControl
         base.OnDetachedFromVisualTree(e);
         _subscriptions.Dispose();
     }
-
+    
     private void UpdateAnimation(double dt)
     {
         animationOffset += _totalDirection * dt;
